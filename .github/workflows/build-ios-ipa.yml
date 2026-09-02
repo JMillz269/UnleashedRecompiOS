@@ -84,4 +84,36 @@ jobs:
             DXC_PATH="$(find "${PWD}/thirdparty/vcpkg/installed" -type f -name dxc -perm -111 -print -quit 2>/dev/null || true)"
           fi
 
-          # fallback](#)
+          # Set DIRECTX_DXC_TOOL if dxc was found
+          if [ -x "$DXC_PATH" ]; then
+            echo "Found dxc at: $DXC_PATH"
+            echo "DIRECTX_DXC_TOOL=$DXC_PATH" >> $GITHUB_ENV
+          else
+            echo "Warning: dxc not found, build may fail"
+          fi
+
+      - name: Configure iOS build with CMake
+        run: |
+          cmake --preset ios-xcode-release
+
+      - name: Build iOS app with Xcode
+        run: |
+          cmake --build --preset ios-xcode-release --config Release
+
+      - name: Create Payload directory
+        run: |
+          mkdir -p Payload
+          cp -r out/build/ios-xcode-release/Release-iphoneos/Unleashed\ Recompiled.app Payload/
+
+      - name: Create unsigned IPA
+        run: |
+          cd Payload
+          zip -r ../UnleashedRecomp-unsigned.ipa .
+          cd ..
+
+      - name: Upload iOS IPA as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnleashedRecomp-iOS-unsigned-IPA
+          path: UnleashedRecomp-unsigned.ipa
+          retention-days: 30
