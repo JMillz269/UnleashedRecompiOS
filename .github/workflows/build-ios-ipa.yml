@@ -27,7 +27,19 @@ jobs:
           path: ./private
 
       - name: Prepare project assets
-        run: cp -RL ./private/* ./UnleashedRecompLib/private
+        run: |
+          asset_dir="./private"
+          if [ ! -f "${asset_dir}/default.xex" ]; then
+            asset_file="$(find "${asset_dir}" -name default.xex -type f -print -quit)"
+            if [ -z "${asset_file}" ]; then
+              echo "default.xex was not found in the checked-out asset repository"
+              exit 1
+            fi
+            asset_dir="$(dirname "${asset_file}")"
+          fi
+          cp -RL "${asset_dir}"/* ./UnleashedRecompLib/private/
+          test -f ./UnleashedRecompLib/private/default.xex
+          test -f ./UnleashedRecompLib/private/default.xexp
 
       - name: Setup Xcode
         run: |
