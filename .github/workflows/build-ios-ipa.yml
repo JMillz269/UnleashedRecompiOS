@@ -65,8 +65,11 @@ jobs:
             -DUNLEASHED_RECOMP_METAL=ON \
             ../..
           
-          # Generate the shader headers and binary resource sources needed by the iOS build.
-          cmake --build . --target UnleashedRecompShaders UnleashedRecompResources
+          # Generate the shader headers, binary resource sources, and PPC recompiled sources
+          # needed by the iOS build. UnleashedRecompPPC is generated here (host macOS config)
+          # because the iOS build uses UNLEASHED_RECOMP_USE_PREGENERATED_RECOMP and expects
+          # the ppc/* and shader/shader_cache.cpp sources to already exist on disk.
+          cmake --build . --target UnleashedRecompShaders UnleashedRecompResources UnleashedRecompPPC
           
           cd ../..
           echo "SPIR-V headers generated successfully"

@@ -93,6 +93,15 @@ if (NOT UNLEASHED_RECOMP_USE_PREGENERATED_RECOMP)
     )
 endif()
 
+# Custom target that only depends on the generated PPC recompiled sources and shader
+# cache, without requiring the sources to be compiled. This allows a host build (e.g.
+# macOS) to generate these files ahead of time for an iOS build, which relies on
+# UNLEASHED_RECOMP_USE_PREGENERATED_RECOMP and does not regenerate them itself.
+add_custom_target(UnleashedRecompPPC DEPENDS 
+    ${UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES}
+    "${CMAKE_CURRENT_SOURCE_DIR}/shader/shader_cache.cpp"
+)
+
 add_library(UnleashedRecompLib 
     ${UNLEASHED_RECOMP_PPC_RECOMPILED_SOURCES}
     "shader/shader_cache.h"
