@@ -66,7 +66,7 @@ jobs:
             ../..
           
           # Build only the shader headers (this generates the .spirv.h files)
-          cmake --build . --target UnleashedRecomp 2>&1 | grep -E "Generating|spirv.h" || true
+          cmake --build . --target UnleashedRecompShaders
           
           cd ../..
           echo "SPIR-V headers generated successfully"
