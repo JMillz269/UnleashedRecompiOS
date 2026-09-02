@@ -64,6 +64,7 @@ function(BIN2C)
         BYPRODUCTS "${BIN2C_ARGS_DEST_FILE}.h"
         COMMENT "Generating binary header for ${BIN2C_ARGS_SOURCE_FILE}..."
     )
+    set_property(GLOBAL APPEND PROPERTY UNLEASHED_RECOMP_RESOURCE_OUTPUTS "${BIN2C_ARGS_DEST_FILE}.c")
 
     set_source_files_properties(${BIN2C_ARGS_DEST_FILE}.c PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
     target_sources(${BIN2C_ARGS_TARGET_OBJ} PRIVATE ${BIN2C_ARGS_DEST_FILE}.c)
@@ -726,3 +727,6 @@ BIN2C(TARGET_OBJ UnleashedRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sy
 BIN2C(TARGET_OBJ UnleashedRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_actstg_pausedecide.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_actstg_pausedecide.ogg" ARRAY_NAME "g_sys_actstg_pausedecide")
 BIN2C(TARGET_OBJ UnleashedRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_actstg_pausewinclose.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_actstg_pausewinclose.ogg" ARRAY_NAME "g_sys_actstg_pausewinclose")
 BIN2C(TARGET_OBJ UnleashedRecomp SOURCE_FILE "${RESOURCES_SOURCE_PATH}/sounds/sys_actstg_pausewinopen.ogg" DEST_FILE "${RESOURCES_OUTPUT_PATH}/sounds/sys_actstg_pausewinopen.ogg" ARRAY_NAME "g_sys_actstg_pausewinopen")
+
+get_property(UNLEASHED_RECOMP_RESOURCE_OUTPUTS GLOBAL PROPERTY UNLEASHED_RECOMP_RESOURCE_OUTPUTS)
+add_custom_target(UnleashedRecompResources DEPENDS ${UNLEASHED_RECOMP_RESOURCE_OUTPUTS})
