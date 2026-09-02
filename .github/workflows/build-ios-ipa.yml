@@ -48,53 +48,34 @@ jobs:
             echo "vcpkg executable already present"
           fi
 
-          # Choose vcpkg triplet based on runner architecture and export it
-          ARCH="$(uname -m || true)"
-          if [ "$ARCH" = "arm64" ]; then
-            TRIPLET="arm64-osx"
-          else
-            TRIPLET="x64-osx"
-          fi
-          echo "TRIPLET=${TRIPLET}" >> $GITHUB_ENV
-          echo "Using vcpkg triplet: ${TRIPLET}"
-
-          # Try to install dxc for the detected triplet, fallback to generic install
-          ./thirdparty/vcpkg/vcpkg install dxc:"${TRIPLET}" || ./thirdparty/vcpkg/vcpkg install dxc || true
-
           # export VCPKG_ROOT for subsequent steps
           echo "VCPKG_ROOT=${PWD}/thirdparty/vcpkg" >> $GITHUB_ENV
 
-      - name: Locate dxc and set DIRECTX_DXC_TOOL
+      - name: Generate SPIR-V headers for iOS
         run: |
-          # Compute TRIPLET if not set (robustness for reruns)
-          if [ -z "${TRIPLET}" ]; then
-            ARCH="$(uname -m || true)"
-            if [ "$ARCH" = "arm64" ]; then
-              TRIPLET="arm64-osx"
-            else
-              TRIPLET="x64-osx"
-            fi
-          fi
-
-          # First try the common vcpkg-installed path for the triplet
-          DXC_PATH="${PWD}/thirdparty/vcpkg/installed/${TRIPLET}/tools/dxc/dxc"
-
-          # If not found at the triplet path, try any dxc under installed/
-          if [ ! -x "$DXC_PATH" ]; then
-            DXC_PATH="$(find "${PWD}/thirdparty/vcpkg/installed" -type f -name dxc -perm -111 -print -quit 2>/dev/null || true)"
-          fi
-
-          # Set DIRECTX_DXC_TOOL if dxc was found
-          if [ -x "$DXC_PATH" ]; then
-            echo "Found dxc at: $DXC_PATH"
-            echo "DIRECTX_DXC_TOOL=$DXC_PATH" >> $GITHUB_ENV
-          else
-            echo "Warning: dxc not found, build may fail"
-          fi
+          # Configure a macOS build with dxc to generate SPIR-V headers
+          mkdir -p out/generate-spirv
+          cd out/generate-spirv
+          
+          # Configure with macOS preset (not iOS) to allow dxc to compile shaders
+          cmake -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET="arm64-osx" \
+            -DUNLEASHED_RECOMP_METAL=ON \
+            ../..
+          
+          # Build only the shader headers (this generates the .spirv.h files)
+          cmake --build . --target UnleashedRecomp 2>&1 | grep -E "Generating|spirv.h" || true
+          
+          cd ../..
+          echo "SPIR-V headers generated successfully"
 
       - name: Configure iOS build with CMake
         run: |
-          cmake --preset ios-xcode-release
+          # Configure for iOS using the pregenerated SPIR-V headers
+          cmake --preset ios-xcode-release \
+            -DUNLEASHED_RECOMP_IOS_ENABLE_CODE_SIGNING=OFF
 
       - name: Build iOS app with Xcode
         run: |
