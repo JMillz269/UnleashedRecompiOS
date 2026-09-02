@@ -19,6 +19,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Checkout private assets
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.ASSET_REPO }}
+          token: ${{ secrets.ASSET_REPO_TOKEN }}
+          path: ./private
+
+      - name: Prepare project assets
+        run: cp ./private/* ./UnleashedRecompLib/private
+
       - name: Setup Xcode
         run: |
           sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
