@@ -65,8 +65,8 @@ jobs:
             -DUNLEASHED_RECOMP_METAL=ON \
             ../..
           
-          # Build only the shader headers (this generates the .spirv.h files)
-          cmake --build . --target UnleashedRecompShaders
+          # Generate the shader headers and binary resource sources needed by the iOS build.
+          cmake --build . --target UnleashedRecompShaders UnleashedRecompResources
           
           cd ../..
           echo "SPIR-V headers generated successfully"
