@@ -26,7 +26,19 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install cmake ninja vcpkg
+          # install build tools + DirectX shader compiler (dxc)
+          brew install cmake ninja vcpkg dxc
+
+      - name: Locate dxc and set DIRECTX_DXC_TOOL
+        run: |
+          DXC_PATH="$(which dxc || true)"
+          if [ -z "$DXC_PATH" ]; then
+            echo "Error: dxc not found in PATH"
+            exit 1
+          fi
+          echo "Found dxc at: $DXC_PATH"
+          # export for subsequent steps
+          echo "DIRECTX_DXC_TOOL=$DXC_PATH" >> $GITHUB_ENV
 
       - name: Configure CMake for iOS
         run: |
@@ -34,6 +46,7 @@ jobs:
             -DUNLEASHED_RECOMP_IOS_ENABLE_CODE_SIGNING=OFF \
             -DUNLEASHED_RECOMP_IOS_CODE_SIGN_IDENTITY="" \
             -DUNLEASHED_RECOMP_IOS_DEVELOPMENT_TEAM="" \
+            -DDIRECTX_DXC_TOOL="${DIRECTX_DXC_TOOL}" \
             -DVCPKG_ROOT="${PWD}/thirdparty/vcpkg"
 
       - name: Build iOS app with Xcode
