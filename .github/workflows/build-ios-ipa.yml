@@ -27,7 +27,7 @@ jobs:
           path: ./private
 
       - name: Prepare project assets
-        run: cp -R ./private/* ./UnleashedRecompLib/private
+        run: cp -RL ./private/* ./UnleashedRecompLib/private
 
       - name: Setup Xcode
         run: |
