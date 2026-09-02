@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.ASSET_REPO }}
-          token: ${{ secrets.ASSET_REPO_TOKEN }}
+          token: ${{ secrets.ASSET_REPO_TOKEN || github.token }}
           path: ./private
 
       - name: Prepare project assets
