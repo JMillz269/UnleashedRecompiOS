@@ -12,7 +12,7 @@ on:
 jobs:
   build-ios-ipa:
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -26,27 +26,46 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # install build tools; install Vulkan SDK cask which includes dxc
-          brew install cmake ninja vcpkg
-          brew install --cask vulkan-sdk
+          # install general build tools
+          brew install cmake ninja
+
+          # Prepare vcpkg locally (Homebrew's vcpkg formula provides only the executable; we need the ports tree)
+          git clone https://github.com/microsoft/vcpkg thirdparty/vcpkg
+          ./thirdparty/vcpkg/bootstrap-vcpkg.sh
+
+          # Choose vcpkg triplet based on runner architecture
+          ARCH="$(uname -m || true)"
+          if [ "$ARCH" = "arm64" ]; then
+            TRIPLET="arm64-osx"
+          else
+            TRIPLET="x64-osx"
+          fi
+
+          # Try to install dxc for the detected triplet, fallback to any available
+          ./thirdparty/vcpkg/vcpkg install dxc:"$TRIPLET" || ./thirdparty/vcpkg/vcpkg install dxc || true
+
+          # export VCPKG_ROOT for subsequent steps
+          echo "VCPKG_ROOT=${PWD}/thirdparty/vcpkg" >> $GITHUB_ENV
 
       - name: Locate dxc and set DIRECTX_DXC_TOOL
         run: |
-          # Try to find dxc inside the Vulkan SDK installed by Homebrew
-          DXC_PATH="$(find "$(brew --prefix)/Caskroom/vulkan-sdk" -type f -name dxc -perm -111 -print -quit 2>/dev/null || true)"
+          # First try the common vcpkg-installed path for the chosen triplet
+          DXC_PATH="${PWD}/thirdparty/vcpkg/installed/${TRIPLET}/tools/dxc/dxc"
+
+          # If not found at the triplet path, try any dxc under installed/
+          if [ ! -x "$DXC_PATH" ]; then
+            DXC_PATH="$(find "${PWD}/thirdparty/vcpkg/installed" -type f -name dxc -perm -111 -print -quit 2>/dev/null || true)"
+          fi
 
           # fallback to PATH (in case dxc was placed on PATH)
           if [ -z "$DXC_PATH" ]; then
             DXC_PATH="$(which dxc || true)"
           fi
 
-          # fallback to vcpkg-installed dxc (adjust triplet as needed)
-          if [ -z "$DXC_PATH" ] && [ -x "${PWD}/thirdparty/vcpkg/installed/x64-osx/tools/dxc/dxc" ]; then
-            DXC_PATH="${PWD}/thirdparty/vcpkg/installed/x64-osx/tools/dxc/dxc"
-          fi
-
           if [ -z "$DXC_PATH" ]; then
-            echo "Error: dxc not found after installing Vulkan SDK"
+            echo "Error: dxc not found after installing via vcpkg. Check vcpkg install output for errors."
+            echo "vcpkg installed tree:"
+            ls -la thirdparty/vcpkg/installed || true
             exit 1
           fi
 
