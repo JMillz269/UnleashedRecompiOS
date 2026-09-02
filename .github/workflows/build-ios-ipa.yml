@@ -36,6 +36,7 @@ jobs:
             git -C thirdparty/vcpkg reset --hard origin/master || git -C thirdparty/vcpkg reset --hard origin/main || true
           else
             echo "Cloning vcpkg..."
+            rm -rf thirdparty/vcpkg
             git clone https://github.com/microsoft/vcpkg thirdparty/vcpkg
           fi
 
