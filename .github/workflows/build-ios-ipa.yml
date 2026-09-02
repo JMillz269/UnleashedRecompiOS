@@ -26,16 +26,30 @@ jobs:
 
       - name: Install dependencies
         run: |
-          # install build tools + DirectX shader compiler (dxc)
-          brew install cmake ninja vcpkg dxc
+          # install build tools; install Vulkan SDK cask which includes dxc
+          brew install cmake ninja vcpkg
+          brew install --cask vulkan-sdk
 
       - name: Locate dxc and set DIRECTX_DXC_TOOL
         run: |
-          DXC_PATH="$(which dxc || true)"
+          # Try to find dxc inside the Vulkan SDK installed by Homebrew
+          DXC_PATH="$(find "$(brew --prefix)/Caskroom/vulkan-sdk" -type f -name dxc -perm -111 -print -quit 2>/dev/null || true)"
+
+          # fallback to PATH (in case dxc was placed on PATH)
           if [ -z "$DXC_PATH" ]; then
-            echo "Error: dxc not found in PATH"
+            DXC_PATH="$(which dxc || true)"
+          fi
+
+          # fallback to vcpkg-installed dxc (adjust triplet as needed)
+          if [ -z "$DXC_PATH" ] && [ -x "${PWD}/thirdparty/vcpkg/installed/x64-osx/tools/dxc/dxc" ]; then
+            DXC_PATH="${PWD}/thirdparty/vcpkg/installed/x64-osx/tools/dxc/dxc"
+          fi
+
+          if [ -z "$DXC_PATH" ]; then
+            echo "Error: dxc not found after installing Vulkan SDK"
             exit 1
           fi
+
           echo "Found dxc at: $DXC_PATH"
           # export for subsequent steps
           echo "DIRECTX_DXC_TOOL=$DXC_PATH" >> $GITHUB_ENV
