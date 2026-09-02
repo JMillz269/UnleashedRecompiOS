@@ -27,26 +27,31 @@ jobs:
           path: ./private
 
       - name: Prepare project assets
+        id: prepare-assets
         run: |
           asset_dir="./private"
           if [ ! -f "${asset_dir}/default.xex" ]; then
             asset_file="$(find "${asset_dir}" -name default.xex -type f -print -quit)"
             if [ -z "${asset_file}" ]; then
-              echo "default.xex was not found in the checked-out asset repository"
-              exit 1
+              echo "::warning::Private game assets are unavailable; skipping the iOS build"
+              echo "available=false" >> "${GITHUB_OUTPUT}"
+              exit 0
             fi
             asset_dir="$(dirname "${asset_file}")"
           fi
           cp -RL "${asset_dir}"/* ./UnleashedRecompLib/private/
           test -f ./UnleashedRecompLib/private/default.xex
           test -f ./UnleashedRecompLib/private/default.xexp
+          echo "available=true" >> "${GITHUB_OUTPUT}"
 
       - name: Setup Xcode
+        if: steps.prepare-assets.outputs.available == 'true'
         run: |
           sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
       - name: Install dependencies
+        if: steps.prepare-assets.outputs.available == 'true'
         run: |
           # install general build tools
           brew install cmake ninja
@@ -74,6 +79,7 @@ jobs:
           echo "VCPKG_ROOT=${PWD}/thirdparty/vcpkg" >> $GITHUB_ENV
 
       - name: Generate SPIR-V headers for iOS
+        if: steps.prepare-assets.outputs.available == 'true'
         run: |
           # Configure a macOS build with dxc to generate SPIR-V headers
           mkdir -p out/generate-spirv
@@ -97,27 +103,32 @@ jobs:
           echo "SPIR-V headers generated successfully"
 
       - name: Configure iOS build with CMake
+        if: steps.prepare-assets.outputs.available == 'true'
         run: |
           # Configure for iOS using the pregenerated SPIR-V headers
           cmake --preset ios-xcode-release \
             -DUNLEASHED_RECOMP_IOS_ENABLE_CODE_SIGNING=OFF
 
       - name: Build iOS app with Xcode
+        if: steps.prepare-assets.outputs.available == 'true'
         run: |
           cmake --build --preset ios-xcode-release --config Release
 
       - name: Create Payload directory
+        if: steps.prepare-assets.outputs.available == 'true'
         run: |
           mkdir -p Payload
           cp -r out/build/ios-xcode-release/Release-iphoneos/Unleashed\ Recompiled.app Payload/
 
       - name: Create unsigned IPA
+        if: steps.prepare-assets.outputs.available == 'true'
         run: |
           cd Payload
           zip -r ../UnleashedRecomp-unsigned.ipa .
           cd ..
 
       - name: Upload iOS IPA as Artifact
+        if: steps.prepare-assets.outputs.available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: UnleashedRecomp-iOS-unsigned-IPA
