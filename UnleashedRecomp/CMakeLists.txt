@@ -575,6 +575,7 @@ function(compile_shader FILE_PATH TARGET_NAME)
             DEPENDS ${HLSL_FILE_PATH}
         )
         target_sources(UnleashedRecomp PRIVATE ${HLSL_FILE_PATH}.dxil.h)
+        set_property(GLOBAL APPEND PROPERTY UNLEASHED_RECOMP_SHADER_OUTPUTS ${HLSL_FILE_PATH}.dxil.h)
     endif()
     add_custom_command(
         OUTPUT ${HLSL_FILE_PATH}.spirv.h
@@ -582,6 +583,7 @@ function(compile_shader FILE_PATH TARGET_NAME)
         DEPENDS ${HLSL_FILE_PATH}
     )
     target_sources(UnleashedRecomp PRIVATE ${HLSL_FILE_PATH}.spirv.h)
+    set_property(GLOBAL APPEND PROPERTY UNLEASHED_RECOMP_SHADER_OUTPUTS ${HLSL_FILE_PATH}.spirv.h)
 endfunction()
 
 function(compile_vertex_shader FILE_PATH)
@@ -616,6 +618,8 @@ compile_pixel_shader(resolve_msaa_depth_2x)
 compile_pixel_shader(resolve_msaa_depth_4x)
 compile_pixel_shader(resolve_msaa_depth_8x)
 
+get_property(UNLEASHED_RECOMP_SHADER_OUTPUTS GLOBAL PROPERTY UNLEASHED_RECOMP_SHADER_OUTPUTS)
+add_custom_target(UnleashedRecompShaders DEPENDS ${UNLEASHED_RECOMP_SHADER_OUTPUTS})
 set(RESOURCES_SOURCE_PATH "${PROJECT_SOURCE_DIR}/../UnleashedRecompResources")
 set(RESOURCES_OUTPUT_PATH "${PROJECT_SOURCE_DIR}/res")
 
