@@ -1,0 +1,136 @@
+name: Build iOS IPA (Unsigned - Sideload)
+
+on:
+  push:
+    branches:
+      - metal
+  pull_request:
+    branches:
+      - metal
+  workflow_dispatch:
+
+jobs:
+  build-ios-ipa:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Xcode
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja vcpkg
+
+      - name: Configure CMake for iOS
+        run: |
+          cmake --preset ios-xcode-release \
+            -DUNLEASHED_RECOMP_IOS_ENABLE_CODE_SIGNING=OFF \
+            -DUNLEASHED_RECOMP_IOS_CODE_SIGN_IDENTITY="" \
+            -DUNLEASHED_RECOMP_IOS_DEVELOPMENT_TEAM="" \
+            -DVCPKG_ROOT="${PWD}/thirdparty/vcpkg"
+
+      - name: Build iOS app with Xcode
+        run: |
+          cmake --build out/build/ios-xcode-release --config Release
+
+      - name: Create IPA from build
+        run: |
+          # Find the built app bundle
+          APP_BUNDLE=$(find out/build/ios-xcode-release -name "*.app" -type d | head -n 1)
+          
+          if [ -z "$APP_BUNDLE" ]; then
+            echo "Error: Could not find app bundle"
+            exit 1
+          fi
+          
+          echo "Found app bundle: $APP_BUNDLE"
+          
+          # Create Payload directory structure
+          mkdir -p Payload
+          cp -r "$APP_BUNDLE" Payload/
+          
+          # Create the IPA file (which is just a zip with .ipa extension)
+          zip -r "UnleashedRecompiled-unsigned.ipa" Payload/
+          
+          # Verify IPA was created
+          if [ -f "UnleashedRecompiled-unsigned.ipa" ]; then
+            ls -lh UnleashedRecompiled-unsigned.ipa
+            echo "IPA_SIZE=$(stat -f%z UnleashedRecompiled-unsigned.ipa)" >> $GITHUB_ENV
+          else
+            echo "Error: Failed to create IPA file"
+            exit 1
+          fi
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: UnleashedRecompiled-unsigned-ipa
+          path: UnleashedRecompiled-unsigned.ipa
+          retention-days: 30
+
+      - name: Create Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/metal'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: UnleashedRecompiled-unsigned.ipa
+          tag_name: ios-build-${{ github.run_number }}
+          body: |
+            # Unleashed Recompiled - iOS Unsigned IPA
+            
+            **Build Information:**
+            - Commit: ${{ github.sha }}
+            - Date: ${{ github.event.head_commit.timestamp }}
+            - IPA Size: ${{ env.IPA_SIZE }} bytes
+            
+            ## Installation Instructions
+            
+            This is an **unsigned IPA** designed for sideloading onto iOS devices. You'll need one of the following methods:
+            
+            ### Option 1: Using AltStore (Recommended)
+            1. Install AltStore on your Mac/PC
+            2. Install AltServer on your computer
+            3. Connect your iPhone and trust the computer
+            4. Open AltStore on your iPhone
+            5. Go to "My Apps" → tap the + icon
+            6. Select this IPA file
+            7. Sign in with your Apple ID
+            8. AltStore will handle the signing and installation
+            
+            ### Option 2: Using Xcode (Mac only)
+            1. Connect your iPhone to your Mac
+            2. Trust the computer on your iPhone
+            3. Open Xcode → Window → Devices and Simulators
+            4. Select your device
+            5. Drag and drop the IPA onto the "Installed Apps" section
+            
+            ### Option 3: Using ios-app-installer
+            1. Use a third-party tool like ios-app-installer
+            2. Follow the tool's documentation for IPA installation
+            
+            ## Notes
+            - This IPA is unsigned and requires sideloading
+            - You must have physical access to an iOS device
+            - Install certificates/provisioning profiles as needed by your sideloading method
+            - The app may need to be re-signed periodically depending on your Apple ID
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ iOS IPA Build Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** UnleashedRecompiled-unsigned.ipa" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**For Sideloading:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Use AltStore (recommended)" >> $GITHUB_STEP_SUMMARY
+          echo "- Use Xcode (Mac only)" >> $GITHUB_STEP_SUMMARY
+          echo "- Use other iOS app installation tools" >> $GITHUB_STEP_SUMMARY
